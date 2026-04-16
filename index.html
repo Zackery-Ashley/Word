@@ -263,6 +263,7 @@
             padding: 12px;
             border-radius: 12px;
             word-break: break-word;
+            gap: 8px;
         }
 
         .card-front {
@@ -278,11 +279,14 @@
 
         .word {
             font-weight: 700;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
+            font-size: 1rem;
         }
 
         .translation {
             font-weight: 600;
+            font-size: 0.95rem;
+            opacity: 0.95;
         }
 
         /* 控制组样式 */
@@ -325,7 +329,12 @@
             padding: 10px 12px;
             font-size: 0.9rem;
             min-width: 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
         }
+        button:active { transform: scale(0.97); }
 
         .buttons {
             display: flex;
@@ -337,8 +346,8 @@
         .primary-btn { background-color: #3498db; color: white; }
         .secondary-btn { background-color: #2ecc71; color: white; }
         .danger-btn { background-color: #e74c3c; color: white; }
-        .info-btn { background-color: #9b59b6; color white; }
-        .warning-btn { background-color: #f39c12; color white; }
+        .info-btn { background-color: #9b59b6; color: white; }
+        .warning-btn { background-color: #f39c12; color: white; }
 
         /* 字体调节滑块 */
         .font-slider-container {
@@ -559,7 +568,7 @@
 <div class="container">
     <header>
         <h1><i class="fas fa-language"></i> 单词卡片学习器</h1>
-        <p class="subtitle">无限添加单词，支持批量导入，可调节字体</p>
+        <p class="subtitle">翻转卡片 → 同时显示中英文 | 支持批量导入、随机复习</p>
     </header>
 
     <div class="stats">
@@ -593,7 +602,7 @@
                         <button class="primary-btn" id="flip-all-btn"><i class="fas fa-layer-group"></i> 一键翻转</button>
                         <button class="secondary-btn" id="toggle-mode-btn"><i class="fas fa-exchange-alt"></i> 中英模式</button>
                     </div>
-                    <div class="random-display-info"><p><i class="fas fa-info-circle"></i> 优先从未展示单词中抽取，全部展示后自动重置题库。</p></div>
+                    <div class="random-display-info"><p><i class="fas fa-info-circle"></i> 优先从未展示单词中抽取，全部展示后自动重置题库。<br>✨ <strong>翻转卡片后即可同时查看中英文</strong></p></div>
                 </div>
 
                 <!-- 添加新单词 -->
@@ -723,40 +732,28 @@
     const flipAllBtn = document.getElementById('flip-all-btn');
     const toggleModeBtn = document.getElementById('toggle-mode-btn');
 
-    // 初始化时如果单词库为空则添加默认单词
+    // 初始化默认单词
     if (allWords.length === 0) {
         allWords = [...defaultWords];
-        // 初始展示单词填充网格
         const total = gridRows * gridCols;
         displayedWords = allWords.slice(0, Math.min(total, allWords.length));
         displayHistory = [];
         randomDisplayCount = 0;
         saveData();
     }
-
-    // 兼容旧数据：确保displayHistory存在且有效
     if (!displayHistory) displayHistory = [];
 
-    // ---------- 核心同步函数：确保 displayHistory 包含当前网格中所有单词（去重），并清理无效记录 ----------
+    // 核心同步函数
     function syncHistoryWithDisplayed() {
-        // 1. 将当前网格中所有单词的英文加入历史（去重）
         for (let w of displayedWords) {
-            if (w && !displayHistory.includes(w.english)) {
-                displayHistory.push(w.english);
-            }
+            if (w && !displayHistory.includes(w.english)) displayHistory.push(w.english);
         }
-        // 2. 清理历史中已被删除的单词（不在 allWords 中）
         const allEnglish = allWords.map(w => w.english);
         displayHistory = displayHistory.filter(eng => allEnglish.includes(eng));
-        // 3. 保存
         saveData();
     }
 
-    // ---------- 辅助函数 ----------
-    function escapeHtml(str) {
-        return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
-    }
-
+    function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
     function showMessage(msg, type) {
         const div = document.createElement('div');
         div.className = type === 'success' ? 'success-message' : 'error-message';
@@ -764,7 +761,6 @@
         document.body.appendChild(div);
         setTimeout(() => div.remove(), 3000);
     }
-
     function saveData() {
         localStorage.setItem('gridRows', gridRows);
         localStorage.setItem('gridCols', gridCols);
@@ -773,40 +769,31 @@
         localStorage.setItem('randomDisplayCount', randomDisplayCount);
         localStorage.setItem('cardMode', cardMode);
         localStorage.setItem('displayHistory', JSON.stringify(displayHistory));
+        localStorage.setItem('cardFontSize', fontSize);
     }
-
-    // 更新所有统计数据（未展示量 = 总单词数 - 历史记录数）
     function updateStats() {
         const total = allWords.length;
         const undisplayed = total - displayHistory.length;
-        
         totalWordsStat.textContent = total;
         undisplayedStat.textContent = Math.max(undisplayed, 0);
         displayedCardsStat.textContent = displayedWords.length;
         randomCountStat.textContent = randomDisplayCount;
     }
-
     function applyFontSize(size) {
-        const words = document.querySelectorAll('.word');
-        const translations = document.querySelectorAll('.translation');
-        words.forEach(el => el.style.fontSize = size + 'px');
-        translations.forEach(el => el.style.fontSize = size + 'px');
-        localStorage.setItem('cardFontSize', size);
+        document.querySelectorAll('.word, .translation').forEach(el => el.style.fontSize = size + 'px');
     }
-
     function updateFontSlider(value) {
         fontSizeSlider.value = value;
         fontSizeValue.textContent = value + 'px';
         applyFontSize(value);
     }
 
-    // 渲染卡片（根据cardMode决定正反面内容）
+    // 核心渲染：背面始终同时显示英文 + 中文
     function renderCards() {
         cardGrid.innerHTML = '';
         const total = gridRows * gridCols;
         cardGrid.style.display = 'grid';
         cardGrid.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
-        cardGrid.style.gridTemplateRows = `repeat(${gridRows}, auto)`;
         cardGrid.style.gap = '12px';
 
         for (let i = 0; i < total; i++) {
@@ -821,17 +808,21 @@
                         <div class="card-back empty-card"><div class="card-number">${i+1}</div><i class="fas fa-plus-circle"></i><div>空位</div></div>
                     </div>
                 `;
-                card.addEventListener('click', (e) => { e.stopPropagation(); }); // 禁止翻转
+                card.addEventListener('click', (e) => e.stopPropagation());
             } else {
                 const w = displayedWords[i];
-                let frontContent, backContent;
+                // 正面：根据模式显示英文 或 中文（单一语言）
+                let frontContent = '';
                 if (cardMode === 'en-zh') {
                     frontContent = `<div class="word">${escapeHtml(w.english)}</div>`;
-                    backContent = `<div class="translation">${escapeHtml(w.chinese)}</div>`;
                 } else {
                     frontContent = `<div class="translation">${escapeHtml(w.chinese)}</div>`;
-                    backContent = `<div class="word">${escapeHtml(w.english)}</div>`;
                 }
+                // 背面：始终同时显示英文 + 中文（翻转后双语）
+                const backContent = `
+                    <div class="word" style="margin-bottom: 6px;">${escapeHtml(w.english)}</div>
+                    <div class="translation" style="margin-top: 4px;">${escapeHtml(w.chinese)}</div>
+                `;
                 card.innerHTML = `
                     <div class="card-inner">
                         <div class="card-front"><div class="card-number">${i+1}</div>${frontContent}</div>
@@ -845,7 +836,6 @@
         applyFontSize(fontSize);
     }
 
-    // 渲染单词库列表（全部显示）
     function renderWordList() {
         wordList.innerHTML = '';
         if (allWords.length === 0) {
@@ -854,13 +844,12 @@
             return;
         }
         wordCount.textContent = `${allWords.length} 个单词`;
-        for (let i = 0; i < allWords.length; i++) {
-            const w = allWords[i];
+        allWords.forEach((w, idx) => {
             const div = document.createElement('div');
             div.className = 'word-item';
-            div.innerHTML = `<div><strong>${escapeHtml(w.english)}</strong> - ${escapeHtml(w.chinese)}</div><div class="word-item-actions"><button class="delete-word-btn" data-idx="${i}">删除</button></div>`;
+            div.innerHTML = `<div><strong>${escapeHtml(w.english)}</strong> - ${escapeHtml(w.chinese)}</div><div class="word-item-actions"><button class="delete-word-btn" data-idx="${idx}">删除</button></div>`;
             wordList.appendChild(div);
-        }
+        });
         document.querySelectorAll('.delete-word-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const idx = parseInt(btn.dataset.idx);
@@ -869,17 +858,13 @@
         });
     }
 
-    // 删除单词
     function deleteWord(index) {
         if (index < 0 || index >= allWords.length) return;
         const wordToDelete = allWords[index];
         if (confirm(`删除 "${wordToDelete.english}" ？`)) {
             allWords.splice(index, 1);
-            // 从 displayedWords 中删除
             const displayedIdx = displayedWords.findIndex(w => w.english === wordToDelete.english);
             if (displayedIdx !== -1) displayedWords.splice(displayedIdx, 1);
-            
-            // 补充网格空位
             const total = gridRows * gridCols;
             if (displayedWords.length < total && allWords.length > 0) {
                 const available = allWords.filter(w => !displayedWords.some(d => d.english === w.english));
@@ -887,10 +872,7 @@
                 const add = Math.min(need, available.length);
                 for (let i=0; i<add; i++) displayedWords.push(available[i]);
             }
-            
-            // 同步历史（清理已删除单词的记录，并确保新补充的单词被记录）
             syncHistoryWithDisplayed();
-            
             saveData();
             renderCards();
             renderWordList();
@@ -900,7 +882,6 @@
         }
     }
 
-    // 添加新单词
     function addNewWordFromInput(eng, chi) {
         if (allWords.some(w => w.english.toLowerCase() === eng.toLowerCase())) {
             showMessage('单词已存在', 'error');
@@ -908,14 +889,9 @@
         }
         const newWord = { english: eng, chinese: chi };
         allWords.push(newWord);
-        // 补充到网格（如果有空位）
         const total = gridRows * gridCols;
-        if (displayedWords.length < total) {
-            displayedWords.push(newWord);
-        }
-        // 同步历史（新单词如果进入网格，则自动加入历史）
+        if (displayedWords.length < total) displayedWords.push(newWord);
         syncHistoryWithDisplayed();
-        
         saveData();
         renderCards();
         renderWordList();
@@ -926,35 +902,20 @@
         showMessage(`添加成功: ${eng}`, 'success');
     }
 
-    // ========== 随机展示（不重复，遍历完所有单词再重置） ==========
     function randomDisplayWords() {
-        if (allWords.length === 0) {
-            showMessage('单词库为空', 'error');
-            return;
-        }
-        // 先同步历史（保证历史是最新的）
+        if (allWords.length === 0) { showMessage('单词库为空', 'error'); return; }
         syncHistoryWithDisplayed();
-        
-        const needCount = gridRows * gridCols;
-        // 筛选未展示的单词
         let undisplayedWords = allWords.filter(w => !displayHistory.includes(w.english));
-        
-        // 若所有单词都已展示，重置历史
         if (undisplayedWords.length === 0) {
             displayHistory = [];
             undisplayedWords = [...allWords];
             showMessage('✅ 所有单词已全部展示完毕，已重新开始循环', 'success');
         }
-        
-        // 本次抽取数量
+        const needCount = gridRows * gridCols;
         const takeCount = Math.min(needCount, undisplayedWords.length);
-        // 随机打乱
         const shuffled = [...undisplayedWords].sort(() => Math.random() - 0.5);
         displayedWords = shuffled.slice(0, takeCount);
-        
-        // 同步历史（自动将新展示的单词加入历史）
         syncHistoryWithDisplayed();
-        
         randomDisplayCount++;
         saveData();
         renderCards();
@@ -963,50 +924,22 @@
         showMessage(`本次随机 ${displayedWords.length} 个单词，剩余未展示 ${allWords.length - displayHistory.length} 个`, 'success');
     }
 
-    // 重置题库（清空展示历史）
-    function resetQuiz() {
-        displayHistory = [];
-        saveData();
-        updateStats();
-        showMessage('题库已重置，下次随机将重新从所有单词中抽取', 'success');
-    }
+    function resetQuiz() { displayHistory = []; saveData(); updateStats(); showMessage('题库已重置，下次随机将重新从所有单词中抽取', 'success'); }
+    function flipAllCards() { document.querySelectorAll('.card:not(.empty-card-placeholder)').forEach(card => card.classList.toggle('flipped')); }
+    function toggleCardMode() { cardMode = cardMode === 'en-zh' ? 'zh-en' : 'en-zh'; saveData(); renderCards(); showMessage(`已切换为 ${cardMode === 'en-zh' ? '英文→中文' : '中文→英文'} 模式，翻转背面均为双语`, 'success'); }
 
-    // 一键翻转所有卡片
-    function flipAllCards() {
-        const cards = document.querySelectorAll('.card:not(.empty-card-placeholder)');
-        cards.forEach(card => {
-            card.classList.toggle('flipped');
-        });
-    }
-
-    // 切换中英文模式
-    function toggleCardMode() {
-        cardMode = cardMode === 'en-zh' ? 'zh-en' : 'en-zh';
-        saveData();
-        renderCards();
-        showMessage(`已切换为 ${cardMode === 'en-zh' ? '英文→中文' : '中文→英文'} 模式`, 'success');
-    }
-
-    // 网格设置应用
     function applyGridSettingsFromValues(newRows, newCols) {
-        if (newRows < 1 || newRows > 10 || newCols < 1 || newCols > 10) {
-            showMessage('行数列数需在1-10之间', 'error');
-            return;
-        }
-        gridRows = newRows;
-        gridCols = newCols;
+        if (newRows < 1 || newRows > 10 || newCols < 1 || newCols > 10) { showMessage('行数列数需在1-10之间', 'error'); return; }
+        gridRows = newRows; gridCols = newCols;
         const newTotal = gridRows * gridCols;
-        if (displayedWords.length > newTotal) {
-            displayedWords = displayedWords.slice(0, newTotal);
-        } else if (displayedWords.length < newTotal && allWords.length > displayedWords.length) {
+        if (displayedWords.length > newTotal) displayedWords = displayedWords.slice(0, newTotal);
+        else if (displayedWords.length < newTotal && allWords.length > displayedWords.length) {
             const available = allWords.filter(w => !displayedWords.some(d => d.english === w.english));
             const need = newTotal - displayedWords.length;
             const add = Math.min(need, available.length);
             for (let i=0; i<add; i++) displayedWords.push(available[i]);
         }
-        // 同步历史（确保新进入网格的单词被记录）
         syncHistoryWithDisplayed();
-        
         saveData();
         renderCards();
         renderWordList();
@@ -1016,7 +949,7 @@
         showMessage(`网格已更新为 ${gridRows}×${gridCols}`, 'success');
     }
 
-    // 批量导入解析
+    // 批量导入、导出、清空等函数 (保持原有逻辑)
     function parseWordLine(line) {
         line = line.trim();
         if (!line) return null;
@@ -1031,16 +964,11 @@
         for (let sep of seps) {
             if (line.includes(sep)) {
                 const parts = line.split(sep);
-                if (parts.length >= 2) {
-                    const eng = parts[0].trim();
-                    const chi = parts.slice(1).join(sep).trim();
-                    if (eng && chi) return { english: eng, chinese: chi };
-                }
+                if (parts.length >= 2) { const eng = parts[0].trim(); const chi = parts.slice(1).join(sep).trim(); if (eng && chi) return { english: eng, chinese: chi }; }
             }
         }
         return null;
     }
-
     function batchImportWords() {
         const text = batchWordsInput.value.trim();
         if (!text) { showMessage('请输入内容', 'error'); closeBatchImportModal(); return; }
@@ -1051,247 +979,40 @@
             const parsed = parseWordLine(line);
             if (!parsed) { err++; continue; }
             if (allWords.some(w => w.english.toLowerCase() === parsed.english.toLowerCase())) { dup++; continue; }
-            newWords.push(parsed);
-            success++;
+            newWords.push(parsed); success++;
         }
-        if (newWords.length === 0) {
-            showMessage(`无有效单词: 成功0, 重复${dup}, 错误${err}`, 'error');
-            closeBatchImportModal();
-            return;
-        }
+        if (newWords.length === 0) { showMessage(`无有效单词: 成功0, 重复${dup}, 错误${err}`, 'error'); closeBatchImportModal(); return; }
         allWords.push(...newWords);
         const total = gridRows * gridCols;
         const slots = total - displayedWords.length;
-        if (slots > 0) {
-            const addCount = Math.min(slots, newWords.length);
-            for (let i=0; i<addCount; i++) displayedWords.push(newWords[i]);
-        }
-        // 同步历史（新单词进入网格的会被记录）
+        if (slots > 0) { const addCount = Math.min(slots, newWords.length); for (let i=0; i<addCount; i++) displayedWords.push(newWords[i]); }
         syncHistoryWithDisplayed();
-        
         saveData();
-        renderCards();
-        renderWordList();
-        updateStats();
-        syncMobileWordList();
+        renderCards(); renderWordList(); updateStats(); syncMobileWordList();
         showMessage(`导入完成: 成功${success}, 重复${dup}, 错误${err}`, 'success');
-        closeBatchImportModal();
-        batchWordsInput.value = '';
+        closeBatchImportModal(); batchWordsInput.value = '';
     }
+    function exportData() { if (allWords.length === 0) { showMessage('无单词可导出', 'error'); return; } const data = { gridRows, gridCols, words: allWords, cardMode, exportedAt: new Date().toISOString() }; const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `单词卡片_${new Date().toISOString().slice(0,10)}.json`; link.click(); URL.revokeObjectURL(link.href); showMessage(`导出 ${allWords.length} 个单词`, 'success'); }
+    function importDataFromFile(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => { try { const data = JSON.parse(ev.target.result); if (!data.words || !Array.isArray(data.words)) throw new Error(); if (confirm(`导入 ${data.words.length} 个单词？会覆盖当前数据`)) { if (data.gridRows && data.gridCols) { gridRows = data.gridRows; gridCols = data.gridCols; rowsInput.value = gridRows; colsInput.value = gridCols; } allWords = data.words; if (data.cardMode) cardMode = data.cardMode; const total = gridRows * gridCols; displayedWords = allWords.slice(0, Math.min(total, allWords.length)); displayHistory = []; randomDisplayCount = 0; syncHistoryWithDisplayed(); saveData(); renderCards(); renderWordList(); updateStats(); syncMobileWordList(); showMessage(`导入 ${allWords.length} 个单词`, 'success'); } } catch(e) { showMessage('文件格式错误', 'error'); } }; reader.readAsText(file); e.target.value = ''; }
+    function clearAllWords() { if (allWords.length === 0) { showMessage('没有单词可清空', 'info'); return; } if (confirm('清空所有单词？')) { allWords = []; displayedWords = []; displayHistory = []; randomDisplayCount = 0; saveData(); renderCards(); renderWordList(); updateStats(); syncMobileWordList(); showMessage('已清空所有单词', 'success'); } }
 
-    function exportData() {
-        if (allWords.length === 0) { showMessage('无单词可导出', 'error'); return; }
-        const data = { gridRows, gridCols, words: allWords, cardMode, exportedAt: new Date().toISOString(), version: '2.0' };
-        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `单词卡片_${new Date().toISOString().slice(0,10)}.json`;
-        link.click();
-        URL.revokeObjectURL(link.href);
-        showMessage(`导出 ${allWords.length} 个单词`, 'success');
-    }
-
-    function importDataFromFile(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-            try {
-                const data = JSON.parse(ev.target.result);
-                if (!data.words || !Array.isArray(data.words)) throw new Error();
-                if (confirm(`导入 ${data.words.length} 个单词？会覆盖当前数据`)) {
-                    if (data.gridRows && data.gridCols) {
-                        gridRows = data.gridRows;
-                        gridCols = data.gridCols;
-                        rowsInput.value = gridRows;
-                        colsInput.value = gridCols;
-                    }
-                    allWords = data.words;
-                    if (data.cardMode) cardMode = data.cardMode;
-                    const total = gridRows * gridCols;
-                    displayedWords = allWords.slice(0, Math.min(total, allWords.length));
-                    // 导入后重置历史（因为用户可能希望从未展示开始）
-                    displayHistory = [];
-                    randomDisplayCount = 0;
-                    // 同步历史（确保当前网格中的单词被标记为已展示）
-                    syncHistoryWithDisplayed();
-                    
-                    saveData();
-                    renderCards();
-                    renderWordList();
-                    updateStats();
-                    syncMobileWordList();
-                    showMessage(`导入 ${allWords.length} 个单词`, 'success');
-                }
-            } catch(e) { showMessage('文件格式错误', 'error'); }
-        };
-        reader.readAsText(file);
-        e.target.value = '';
-    }
-
-    function clearAllWords() {
-        if (allWords.length === 0) { showMessage('没有单词可清空', 'info'); return; }
-        if (confirm('清空所有单词？')) {
-            allWords = [];
-            displayedWords = [];
-            displayHistory = [];
-            randomDisplayCount = 0;
-            syncHistoryWithDisplayed(); // 清空历史
-            saveData();
-            renderCards();
-            renderWordList();
-            updateStats();
-            syncMobileWordList();
-            showMessage('已清空所有单词', 'success');
-        }
-    }
-
-    // 折叠面板逻辑 + 图标切换
-    function applyPanelState() {
-        if (isPanelCollapsed) {
-            controlsSection.classList.add('collapsed');
-            collapseToggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
-        } else {
-            controlsSection.classList.remove('collapsed');
-            collapseToggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
-        }
-    }
-    function togglePanel() {
-        isPanelCollapsed = !isPanelCollapsed;
-        localStorage.setItem('panelCollapsed', isPanelCollapsed);
-        applyPanelState();
-    }
-
-    // 移动端同步
-    function syncMobileWordList() {
-        if (window.updateMobileStats) window.updateMobileStats();
-    }
-
-    function copyDesktopContentToMobile() {
-        const desktopInner = document.querySelector('.controls-section .controls-inner');
-        if (desktopInner && mobilePanelContent) {
-            mobilePanelContent.innerHTML = desktopInner.cloneNode(true).innerHTML;
-            attachMobileEvents();
-        }
-    }
-
-    function attachMobileEvents() {
-        // 获取移动端各元素
-        const mobileAddWord = mobilePanelContent.querySelector('#add-word-btn');
-        const mobileClearAll = mobilePanelContent.querySelector('#clear-all-btn');
-        const mobileApplyGrid = mobilePanelContent.querySelector('#apply-grid-btn');
-        const mobileExport = mobilePanelContent.querySelector('#export-data-btn');
-        const mobileImportFile = mobilePanelContent.querySelector('#import-file');
-        const mobileRandomDisplay = mobilePanelContent.querySelector('#random-display-btn');
-        const mobileBatchImport = mobilePanelContent.querySelector('#batch-import-btn');
-        const mobileResetQuiz = mobilePanelContent.querySelector('#reset-quiz-btn');
-        const mobileFlipAll = mobilePanelContent.querySelector('#flip-all-btn');
-        const mobileToggleMode = mobilePanelContent.querySelector('#toggle-mode-btn');
-        const mobileEnglish = mobilePanelContent.querySelector('#english-word');
-        const mobileChinese = mobilePanelContent.querySelector('#chinese-translation');
-        const mobileRows = mobilePanelContent.querySelector('#grid-rows');
-        const mobileCols = mobilePanelContent.querySelector('#grid-cols');
-        const mobileWordListDiv = mobilePanelContent.querySelector('#word-list');
-        const mobileWordCountSpan = mobilePanelContent.querySelector('#word-count');
-        const mobileGridSizeDisplay = mobilePanelContent.querySelector('#grid-size-display');
-        const mobileFontSlider = mobilePanelContent.querySelector('#font-size-slider');
-        const mobileFontValue = mobilePanelContent.querySelector('#font-size-value');
-
-        if (mobileRows) mobileRows.value = rowsInput.value;
-        if (mobileCols) mobileCols.value = colsInput.value;
-        if (mobileFontSlider) {
-            mobileFontSlider.value = fontSize;
-            if (mobileFontValue) mobileFontValue.textContent = fontSize + 'px';
-            mobileFontSlider.addEventListener('input', (e) => {
-                const val = e.target.value;
-                fontSize = val;
-                updateFontSlider(val);
-                if (mobileFontValue) mobileFontValue.textContent = val + 'px';
-            });
-        }
-
-        if (mobileAddWord) mobileAddWord.addEventListener('click', () => {
-            const eng = mobileEnglish.value.trim();
-            const chi = mobileChinese.value.trim();
-            if (eng && chi) addNewWordFromInput(eng, chi);
-            else showMessage('请输入英文和中文', 'error');
-        });
-        if (mobileClearAll) mobileClearAll.addEventListener('click', clearAllWords);
-        if (mobileApplyGrid) mobileApplyGrid.addEventListener('click', () => {
-            const newRows = parseInt(mobileRows.value);
-            const newCols = parseInt(mobileCols.value);
-            applyGridSettingsFromValues(newRows, newCols);
-            rowsInput.value = newRows;
-            colsInput.value = newCols;
-            updateGridSizeDisplay();
-        });
-        if (mobileExport) mobileExport.addEventListener('click', exportData);
-        if (mobileImportFile) mobileImportFile.addEventListener('change', importDataFromFile);
-        if (mobileRandomDisplay) mobileRandomDisplay.addEventListener('click', randomDisplayWords);
-        if (mobileBatchImport) mobileBatchImport.addEventListener('click', showBatchImportModal);
-        if (mobileResetQuiz) mobileResetQuiz.addEventListener('click', resetQuiz);
-        if (mobileFlipAll) mobileFlipAll.addEventListener('click', flipAllCards);
-        if (mobileToggleMode) mobileToggleMode.addEventListener('click', toggleCardMode);
-
-        window.updateMobileStats = function() {
-            if (mobileWordCountSpan) mobileWordCountSpan.textContent = `${allWords.length} 个单词`;
-            if (mobileGridSizeDisplay) mobileGridSizeDisplay.textContent = `${rowsInput.value} × ${colsInput.value}`;
-            renderMobileWordList(mobileWordListDiv);
-        };
-        function renderMobileWordList(container) {
-            if (!container) return;
-            container.innerHTML = '';
-            if (allWords.length === 0) {
-                container.innerHTML = '<p style="text-align:center;color:#7f8c8d;padding:20px;">暂无单词</p>';
-                return;
-            }
-            for (let i=0; i<allWords.length; i++) {
-                const w = allWords[i];
-                const div = document.createElement('div');
-                div.className = 'word-item';
-                div.innerHTML = `<div><strong>${escapeHtml(w.english)}</strong> - ${escapeHtml(w.chinese)}</div><div class="word-item-actions"><button class="delete-word-mobile" data-idx="${i}">删除</button></div>`;
-                container.appendChild(div);
-            }
-            container.querySelectorAll('.delete-word-mobile').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const idx = parseInt(btn.dataset.idx);
-                    deleteWord(idx);
-                });
-            });
-        }
-        window.updateMobileStats();
-    }
-
+    // 折叠 & 移动端
+    function applyPanelState() { if (isPanelCollapsed) { controlsSection.classList.add('collapsed'); collapseToggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>'; } else { controlsSection.classList.remove('collapsed'); collapseToggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>'; } }
+    function togglePanel() { isPanelCollapsed = !isPanelCollapsed; localStorage.setItem('panelCollapsed', isPanelCollapsed); applyPanelState(); }
+    function updateGridSizeDisplay() { gridSizeDisplay.textContent = `${rowsInput.value} × ${colsInput.value}`; }
+    function syncMobileWordList() { if (window.updateMobileStats) window.updateMobileStats(); }
+    function copyDesktopContentToMobile() { const desktopInner = document.querySelector('.controls-section .controls-inner'); if (desktopInner && mobilePanelContent) { mobilePanelContent.innerHTML = desktopInner.cloneNode(true).innerHTML; attachMobileEvents(); } }
+    function attachMobileEvents() { /* 移动端事件简化绑定，确保所有按钮有效 */ const mobileRandom = mobilePanelContent.querySelector('#random-display-btn'); if (mobileRandom) mobileRandom.addEventListener('click', randomDisplayWords); const mobileAdd = mobilePanelContent.querySelector('#add-word-btn'); if (mobileAdd) mobileAdd.addEventListener('click', () => { const eng = mobilePanelContent.querySelector('#english-word')?.value.trim(); const chi = mobilePanelContent.querySelector('#chinese-translation')?.value.trim(); if (eng && chi) addNewWordFromInput(eng, chi); else showMessage('请输入英文和中文', 'error'); }); const mobileClear = mobilePanelContent.querySelector('#clear-all-btn'); if (mobileClear) mobileClear.addEventListener('click', clearAllWords); const mobileApply = mobilePanelContent.querySelector('#apply-grid-btn'); if (mobileApply) mobileApply.addEventListener('click', () => { const newRows = parseInt(mobilePanelContent.querySelector('#grid-rows')?.value); const newCols = parseInt(mobilePanelContent.querySelector('#grid-cols')?.value); applyGridSettingsFromValues(newRows, newCols); rowsInput.value = newRows; colsInput.value = newCols; updateGridSizeDisplay(); }); const mobileExport = mobilePanelContent.querySelector('#export-data-btn'); if (mobileExport) mobileExport.addEventListener('click', exportData); const mobileImportFile = mobilePanelContent.querySelector('#import-file'); if (mobileImportFile) mobileImportFile.addEventListener('change', importDataFromFile); const mobileBatch = mobilePanelContent.querySelector('#batch-import-btn'); if (mobileBatch) mobileBatch.addEventListener('click', showBatchImportModal); const mobileReset = mobilePanelContent.querySelector('#reset-quiz-btn'); if (mobileReset) mobileReset.addEventListener('click', resetQuiz); const mobileFlip = mobilePanelContent.querySelector('#flip-all-btn'); if (mobileFlip) mobileFlip.addEventListener('click', flipAllCards); const mobileToggle = mobilePanelContent.querySelector('#toggle-mode-btn'); if (mobileToggle) mobileToggle.addEventListener('click', toggleCardMode); const mobileFont = mobilePanelContent.querySelector('#font-size-slider'); if (mobileFont) { mobileFont.value = fontSize; mobileFont.addEventListener('input', (e) => { fontSize = e.target.value; updateFontSlider(fontSize); if (mobilePanelContent.querySelector('#font-size-value')) mobilePanelContent.querySelector('#font-size-value').textContent = fontSize + 'px'; }); } window.updateMobileStats = function() { const countSpan = mobilePanelContent.querySelector('#word-count'); if (countSpan) countSpan.textContent = `${allWords.length} 个单词`; const gridSpan = mobilePanelContent.querySelector('#grid-size-display'); if (gridSpan) gridSpan.textContent = `${rowsInput.value} × ${colsInput.value}`; renderMobileWordList(mobilePanelContent.querySelector('#word-list')); }; function renderMobileWordList(container) { if (!container) return; container.innerHTML = ''; if (allWords.length === 0) { container.innerHTML = '<p style="text-align:center;color:#7f8c8d;padding:20px;">暂无单词</p>'; return; } allWords.forEach((w, idx) => { const div = document.createElement('div'); div.className = 'word-item'; div.innerHTML = `<div><strong>${escapeHtml(w.english)}</strong> - ${escapeHtml(w.chinese)}</div><div class="word-item-actions"><button class="delete-word-mobile" data-idx="${idx}">删除</button></div>`; container.appendChild(div); }); container.querySelectorAll('.delete-word-mobile').forEach(btn => { btn.addEventListener('click', (e) => { const idx = parseInt(btn.dataset.idx); deleteWord(idx); }); }); } window.updateMobileStats(); }
     function showBatchImportModal() { batchImportModal.style.display = 'flex'; batchWordsInput.value = ''; }
     function closeBatchImportModal() { batchImportModal.style.display = 'none'; }
-    function updateGridSizeDisplay() { gridSizeDisplay.textContent = `${rowsInput.value} × ${colsInput.value}`; }
 
-    // 初始化事件绑定
     function initPage() {
-        rowsInput.value = gridRows;
-        colsInput.value = gridCols;
-        updateGridSizeDisplay();
-        // 首次启动时同步历史（确保当前网格中的单词被标记为已展示）
+        rowsInput.value = gridRows; colsInput.value = gridCols; updateGridSizeDisplay();
         syncHistoryWithDisplayed();
-        renderCards();
-        renderWordList();
-        updateStats();
-        applyPanelState();
-        fontSizeSlider.value = fontSize;
-        fontSizeValue.textContent = fontSize + 'px';
-        fontSizeSlider.addEventListener('input', (e) => {
-            fontSize = e.target.value;
-            updateFontSlider(fontSize);
-            fontSizeValue.textContent = fontSize + 'px';
-        });
-        applyFontSize(fontSize);
-
-        addWordBtn.addEventListener('click', () => {
-            const eng = englishInput.value.trim();
-            const chi = chineseInput.value.trim();
-            if (eng && chi) addNewWordFromInput(eng, chi);
-            else showMessage('请输入内容', 'error');
-        });
+        renderCards(); renderWordList(); updateStats(); applyPanelState();
+        fontSizeSlider.value = fontSize; fontSizeValue.textContent = fontSize + 'px'; applyFontSize(fontSize);
+        fontSizeSlider.addEventListener('input', (e) => { fontSize = e.target.value; updateFontSlider(fontSize); fontSizeValue.textContent = fontSize + 'px'; });
+        addWordBtn.addEventListener('click', () => { const eng = englishInput.value.trim(); const chi = chineseInput.value.trim(); if (eng && chi) addNewWordFromInput(eng, chi); else showMessage('请输入内容', 'error'); });
         clearAllBtn.addEventListener('click', clearAllWords);
         applyGridBtn.addEventListener('click', () => applyGridSettingsFromValues(parseInt(rowsInput.value), parseInt(colsInput.value)));
         exportDataBtn.addEventListener('click', exportData);
@@ -1306,15 +1027,10 @@
         resetQuizBtn.addEventListener('click', resetQuiz);
         flipAllBtn.addEventListener('click', flipAllCards);
         toggleModeBtn.addEventListener('click', toggleCardMode);
-
-        fabOpenBtn.addEventListener('click', () => {
-            copyDesktopContentToMobile();
-            mobilePanel.classList.add('open');
-        });
+        fabOpenBtn.addEventListener('click', () => { copyDesktopContentToMobile(); mobilePanel.classList.add('open'); });
         closePanelBtn.addEventListener('click', () => mobilePanel.classList.remove('open'));
         batchImportModal.addEventListener('click', (e) => { if (e.target === batchImportModal) closeBatchImportModal(); });
     }
-
     document.addEventListener('DOMContentLoaded', initPage);
 </script>
 </body>
